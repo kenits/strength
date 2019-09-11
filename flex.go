@@ -1,12 +1,5 @@
 package strength
 
-import (
-	"fmt"
-	"strings"
-
-	"github.com/recoilme/pudge"
-)
-
 // Flex гибкая связь.
 type Flex struct {
 	ID              int     // номер
@@ -40,75 +33,6 @@ func CalcAllFlex(data map[int]Flex, age float64) {
 		flex.calc(age)
 		data[key] = flex
 	}
-}
-
-// write пишет связь в базу.
-func (f *Flex) write(addrDB string) error {
-	err := pudge.Set(strings.Join([]string{addrDB, "flex"}, sep), f.ID, f)
-	return err
-}
-
-// WriteFlex записать связь в базу данных.
-func WriteFlex(flex *Flex, addrDB string) error {
-	err := flex.write(addrDB)
-	return err
-}
-
-// WriteAllFlex записать все связи в базу данных.
-func WriteAllFlex(data *map[int]Flex, addrDB string) error {
-	db, err := pudge.Open(strings.Join([]string{addrDB, "flex"}, sep), nil)
-	defer db.Close()
-	if err != nil {
-		return err
-	}
-	for key, val := range *data {
-		err = db.Set(key, val)
-	}
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// ReadFlex прочитать связь из базы с заданным id.
-func ReadFlex(id int, addrDB string) (Flex, error) {
-	var rez Flex
-	err := pudge.Get(strings.Join([]string{addrDB, "flex"}, sep), id, &rez)
-	return rez, err
-}
-
-// ReadAllFlex прочитать данные всех связей из базы в виде карты [id]Rigid.
-func ReadAllFlex(addrDB string) (map[int]Flex, error) {
-	var (
-		val Flex
-	)
-	db, err := pudge.Open(strings.Join([]string{addrDB, "flex"}, sep), nil)
-	defer db.Close()
-
-	if err != nil {
-		return nil, err
-	}
-
-	data := make(map[int]Flex)
-
-	count, err := db.Count()
-	if err != nil {
-		return nil, err
-	}
-
-	if count == 0 {
-		return nil, fmt.Errorf("no items in flex")
-	}
-
-	for i := 1; i <= count; i++ {
-		err = db.Get(i, &val)
-		if err != nil {
-			return nil, err
-		}
-		data[i] = val
-	}
-
-	return data, nil
 }
 
 // calcSumFlexArea рассчитывает суммарную площадь всех переданных связей.

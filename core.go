@@ -2,13 +2,6 @@ package strength
 
 import (
 	"math"
-	"strings"
-
-	"github.com/recoilme/pudge"
-)
-
-const (
-	sep string = "/"
 )
 
 // BaseData исходные данные по проекту.
@@ -23,25 +16,6 @@ type BaseData struct {
 	MomentFlag     bool      // false прогиб, true перегиб
 	Moment         float64   // расчётный момент всегда положительный (если не задан то считается предельный) кН*м
 	Accuracy       float64   // точность расчёт в %
-}
-
-// write пишет основные данные по расчёту в базу.
-func (b *BaseData) write(addrDB string) error {
-	err := pudge.Set(strings.Join([]string{addrDB, "baseData"}, sep), 1, b)
-	return err
-}
-
-// WriteBaseData записывает в базу основные данные по расчёту.
-func WriteBaseData(base *BaseData, addrDB string) error {
-	err := base.write(addrDB)
-	return err
-}
-
-// ReadBaseData читает из базы основные данные по расчёту.
-func ReadBaseData(addrDB string) (BaseData, error) {
-	var rez BaseData
-	err := pudge.Get(strings.Join([]string{addrDB, "baseData"}, sep), 1, &rez)
-	return rez, err
 }
 
 // calcAreaEnd считает площадь на срок службы.
@@ -61,65 +35,6 @@ func calcStaticMoment(area, height float64) float64 {
 func calcMomentOfInertia(area, height float64) float64 {
 	rez := math.Pow(height, 2) * area
 	return rez
-}
-
-// CalculateToDB считает обую прочность записывая все данные в базу.
-func CalculateToDB(baseData *BaseData, rigid map[int]Rigid, flex map[int]Flex, addressDB string) error {
-
-	err := writeImputData(baseData, rigid, flex, addressDB)
-	if err != nil {
-		return err
-	}
-
-	area := calcSumRigidArea(rigid) + calcSumFlexArea(flex)
-	staticMoment := calcSumRigidStaticMoment(rigid) + calcSumFlexStaticMoment(flex)
-	momentOfInertia := calcSumRigidMomentOfInertia(rigid) + calcSumFlexMomentOfInertia(flex)
-
-	rezult := createRezult(area, staticMoment, momentOfInertia, 0, 0, 0, baseData.Height, baseData.Strain, baseData.Symmetry, baseData.Moment)
-	err = rezult.write(addressDB, 1)
-	if err != nil {
-		return err
-	}
-
-	for id := 2; ; id++ {
-
-		moment := 0.0
-		if baseData.Moment == 0 {
-			moment = rezult.Moment
-		} else {
-			moment = baseData.Moment
-		}
-
-		approx := createAllApprox(&flex, moment, rezult.CenterOfMass, rezult.MomentOfInertia, baseData.ElasticModul, baseData.MomentFlag)
-
-		err = writeAllApprox(&approx, addressDB, id)
-		if err != nil {
-			return err
-		}
-
-		areaLoss := calcSumApproxArea(approx)
-		staticMomentLoss := calcSumApproxStaticMoment(approx)
-		momentOfInertiaLoss := calcSumApproxMomentOfInertia(approx)
-
-		newRezult := createRezult(area, staticMoment, momentOfInertia,
-			areaLoss, staticMomentLoss, momentOfInertiaLoss,
-			baseData.Height, baseData.Strain, baseData.Symmetry, baseData.Moment)
-
-		err = newRezult.write(addressDB, id)
-		if err != nil {
-			return err
-		}
-
-		// Сравнение нового и старого результата для выхода цикла
-		if accuracyCheck(&rezult, &newRezult, baseData.Accuracy, baseData.Moment) {
-			break
-		} else {
-			rezult = newRezult
-		}
-	}
-
-	return nil
-
 }
 
 // accuracyCheck проверяет точности, если точность удовлетворительная -> true.
@@ -149,28 +64,10 @@ func accuracyCheck(old, new *Rezult, accuracy, moment float64) bool {
 	return flag
 }
 
-// writeImputData записывает все исходные данные в базу.
-func writeImputData(baseData *BaseData, rigid map[int]Rigid, flex map[int]Flex, addressDB string) error {
-
-	err := WriteBaseData(baseData, addressDB)
-	if err != nil {
-		return err
-	}
-	err = WriteAllRigid(&rigid, addressDB)
-	if err != nil {
-		return err
-	}
-	err = WriteAllFlex(&flex, addressDB)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // Calculate считает всё и добавляет данные в Rigid и Flex и выдаёт карты результатов
-func Calculate(baseData *BaseData, rigid map[int]Rigid, flex map[int]Flex, addressDB string) (map[int]map[int]Approx, map[int]Rezult) {
-	// FIXME: Same problem with copy map probably, need test
-	// TODO: проверить это всё и по возможности обьеденить с аналогичной с записью в ДБ
+func Calculate(baseData *BaseData, rigid map[int]Rigid, flex map[int]Flex) (map[int]map[int]Approx, map[int]Rezult) {
+
+	// TODO: написать тесты
 
 	approxData := make(map[int]map[int]Approx)
 	rezultData := make(map[int]Rezult)
@@ -179,39 +76,41 @@ func Calculate(baseData *BaseData, rigid map[int]Rigid, flex map[int]Flex, addre
 	staticMoment := calcSumRigidStaticMoment(rigid) + calcSumFlexStaticMoment(flex)
 	momentOfInertia := calcSumRigidMomentOfInertia(rigid) + calcSumFlexMomentOfInertia(flex)
 
-	rezult := createRezult(area, staticMoment, momentOfInertia, 0, 0, 0, baseData.Height, baseData.Strain, baseData.Symmetry, baseData.Moment)
+	// Считаем первое приближение
+	rezultData[1] = createRezult(area, staticMoment, momentOfInertia, 0, 0, 0, baseData.Height, baseData.Strain, baseData.Symmetry, baseData.Moment)
 
-	rezultData[1] = rezult
+	// Расчёт 2 и последующих приближений
 
 	for id := 2; ; id++ {
 
-		moment := 0.0
+		// С определением момента можно как-то лучше, но пока не пойму как
+		var (
+			moment float64
+		)
+
 		if baseData.Moment == 0 {
-			moment = rezultData[1].Moment
+			moment = rezultData[id-1].Moment
 		} else {
-			moment = rezultData[1].Moment
+			moment = baseData.Moment
 		}
 
-		approx := createAllApprox(&flex, moment, rezultData[1].CenterOfMass, rezultData[1].MomentOfInertia, baseData.ElasticModul, baseData.MomentFlag)
+		approxData[id] = createAllApprox(&flex, moment, rezultData[id-1].CenterOfMass, rezultData[id-1].MomentOfInertia, baseData.ElasticModul, baseData.MomentFlag)
 
-		approxData[id] = approx
+		areaLoss := calcSumApproxArea(approxData[id])
+		staticMomentLoss := calcSumApproxStaticMoment(approxData[id])
+		momentOfInertiaLoss := calcSumApproxMomentOfInertia(approxData[id])
 
-		areaLoss := calcSumApproxArea(approx)
-		staticMomentLoss := calcSumApproxStaticMoment(approx)
-		momentOfInertiaLoss := calcSumApproxMomentOfInertia(approx)
-
-		newRezult := createRezult(area, staticMoment, momentOfInertia,
+		rezultData[id] = createRezult(area, staticMoment, momentOfInertia,
 			areaLoss, staticMomentLoss, momentOfInertiaLoss,
 			baseData.Height, baseData.Strain, baseData.Symmetry, baseData.Moment)
 
-		rezultData[id] = newRezult
-
 		// Сравнение нового и старого результата для выхода цикла
-		if accuracyCheck(&rezult, &newRezult, baseData.Accuracy, baseData.Moment) {
+		old := rezultData[id-1]
+		new := rezultData[id]
+		if accuracyCheck(&old, &new, baseData.Accuracy, baseData.Moment) {
 			break
-		} else {
-			rezult = newRezult
 		}
+
 	}
 
 	return approxData, rezultData

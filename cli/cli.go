@@ -5,6 +5,7 @@ import (
 	"math"
 	"os"
 	"strconv"
+
 	str "github.com/kenits/strength"
 
 	excel "github.com/360EntSecGroup-Skylar/excelize/v2"
@@ -17,7 +18,7 @@ func main() {
 		return
 	}
 	fileName := args[1]
-	err := calcByDB(fileName)
+	err := calc(fileName)
 	if err != nil {
 		fmt.Println("Что-то пошло не так")
 		fmt.Println(err)
@@ -266,7 +267,8 @@ func writeAllApprox(approx map[int]map[int]str.Approx, file *excel.File) error {
 
 }
 
-func calcByDB(fileName string) error {
+// calc сосчитать файл
+func calc(fileName string) error {
 
 	file, err := excel.OpenFile(fileName)
 	if err != nil {
@@ -282,6 +284,7 @@ func calcByDB(fileName string) error {
 	if err != nil {
 		return err
 	}
+
 	str.CalcAllRigid(rigid, basedata.Age)
 	err = writeRigid(rigid, file)
 	if err != nil {
@@ -292,23 +295,14 @@ func calcByDB(fileName string) error {
 	if err != nil {
 		return err
 	}
+
 	str.CalcAllFlex(flex, basedata.Age)
 	err = writeFlex(flex, file)
 	if err != nil {
 		return err
 	}
 
-	err = str.CalculateToDB(basedata, rigid, flex, "db")
-	if err != nil {
-		return err
-	}
-
-	rezult, err := str.ReadAllRezult("db")
-	if err != nil {
-		return err
-	}
-
-	approx, err := str.ReadAllApprox("db")
+	approx, rezult := str.Calculate(basedata, rigid, flex)
 	if err != nil {
 		return err
 	}
@@ -326,7 +320,6 @@ func calcByDB(fileName string) error {
 
 	return nil
 }
-
 func readVerticalArrayFloat(sheetName, column string, row int, file *excel.File) ([]float64, error) {
 
 	arr := make([]float64, 0)

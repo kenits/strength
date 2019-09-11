@@ -1,11 +1,7 @@
 package strength
 
 import (
-	"fmt"
 	"math"
-	"strings"
-
-	"github.com/recoilme/pudge"
 )
 
 // Rezult результаты приближения.
@@ -94,52 +90,5 @@ func createRezult(area, staticMoment, momentOfInertia float64,
 	}
 
 	return rez
-
-}
-
-// write пишет результат в базу.
-func (r *Rezult) write(addrDB string, id int) error {
-	err := pudge.Set(strings.Join([]string{addrDB, "rezult"}, sep), id, r)
-	return err
-}
-
-// ReadAllRezult читает все результирующие таблицы в виде [step]Rezult.
-func ReadAllRezult(addrDB string) (map[int]Rezult, error) {
-	db, err := pudge.Open(strings.Join([]string{addrDB, "rezult"}, sep), nil)
-	defer db.Close()
-
-	if err != nil {
-		return nil, err
-	}
-
-	data := make(map[int]Rezult)
-
-	count, err := db.Count()
-	if err != nil {
-		return nil, err
-	}
-
-	if count == 0 {
-		return nil, fmt.Errorf("no items in rezult")
-	}
-
-	for i := 1; i <= count; i++ {
-		val := data[i]
-		err = db.Get(i, &val)
-		if err != nil {
-			return nil, err
-		}
-		data[i] = val
-	}
-
-	return data, nil
-
-}
-
-// ReadRezultByStep читает из базы результат конкретного шага.
-func ReadRezultByStep(step int, addrDB string) (Rezult, error) {
-	var rez Rezult
-	err := pudge.Get(strings.Join([]string{addrDB, "rezult"}, sep), step, &rez)
-	return rez, err
 
 }
