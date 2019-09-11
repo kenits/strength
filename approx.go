@@ -4,9 +4,6 @@ import (
 	"fmt"
 	"math"
 	"math/cmplx"
-	"strings"
-
-	"github.com/recoilme/pudge"
 )
 
 // Approx приближение одной пластины.
@@ -355,75 +352,4 @@ func calcSumApproxMomentOfInertia(data map[int]Approx) float64 {
 		sum += val.MomentOfInertiaLoss
 	}
 	return sum
-}
-
-func writeAllApprox(data *map[int]Approx, addrDB string, id int) error {
-	err := pudge.Set(strings.Join([]string{addrDB, "approx"}, sep), id, data)
-	return err
-}
-
-// ReadAllApprox читает из базы все приближения пластин по всем шагам в виде [step][id]Approx.
-func ReadAllApprox(addrDB string) (map[int]map[int]Approx, error) {
-
-	db, err := pudge.Open(strings.Join([]string{addrDB, "approx"}, sep), nil)
-	defer db.Close()
-
-	if err != nil {
-		return nil, err
-	}
-
-	data := make(map[int]map[int]Approx)
-
-	count, err := db.Count()
-	if err != nil {
-		return nil, err
-	}
-
-	if count == 0 {
-		return nil, fmt.Errorf("no approx base")
-	}
-
-	count++ //Корректировка на то что аппроксимации начинаются с двух
-
-	for i := 2; i <= count; i++ {
-		val := make(map[int]Approx)
-		err = db.Get(i, &val)
-		if err != nil {
-			return nil, err
-		}
-		data[i] = val
-	}
-
-	return data, nil
-}
-
-// ReadApproxByStep читает из базы все приближения пластин принадлежащие шагу в виде [id]Approx.
-func ReadApproxByStep(step int, addrDB string) (map[int]Approx, error) {
-	data, err := ReadAllApprox(addrDB)
-	if err != nil {
-		return nil, err
-	}
-	rez, ok := data[step]
-	if !ok {
-		return nil, fmt.Errorf("no approx step")
-	}
-	return rez, nil
-
-}
-
-// ReadApproxByStepAndID читает из базы приближение конкретного шага конкретной пластины.
-func ReadApproxByStepAndID(step, id int, addrDB string) (Approx, error) {
-	var (
-		rez Approx
-	)
-	data, err := ReadApproxByStep(step, addrDB)
-	if err != nil {
-		return rez, err
-	}
-	rez, ok := data[id]
-	if !ok {
-		return rez, fmt.Errorf("no this approx")
-	}
-	return rez, nil
-
 }

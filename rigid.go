@@ -1,12 +1,5 @@
 package strength
 
-import (
-	"fmt"
-	"strings"
-
-	"github.com/recoilme/pudge"
-)
-
 // Rigid жёсткая связь.
 type Rigid struct {
 	ID              int     // номер
@@ -33,75 +26,6 @@ func CalcAllRigid(data map[int]Rigid, age float64) {
 		rigid.calc(age)
 		data[key] = rigid
 	}
-}
-
-// write пишет связь в базу.
-func (r *Rigid) write(addrDB string) error {
-	err := pudge.Set(strings.Join([]string{addrDB, "rigid"}, sep), r.ID, r)
-	return err
-}
-
-// WriteRigid записать связь в базу данных.
-func WriteRigid(rigid *Rigid, addrDB string) error {
-	err := rigid.write(addrDB)
-	return err
-}
-
-// WriteAllRigid записать все связи в базу данных.
-func WriteAllRigid(data *map[int]Rigid, addrDB string) error {
-	db, err := pudge.Open(strings.Join([]string{addrDB, "rigid"}, sep), nil)
-	defer db.Close()
-	if err != nil {
-		return err
-	}
-	for key, val := range *data {
-		err = db.Set(key, val)
-	}
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// ReadRigid прочитать связь из базы с заданным id.
-func ReadRigid(id int, addrDB string) (Rigid, error) {
-	var rez Rigid
-	err := pudge.Get(strings.Join([]string{addrDB, "rigid"}, sep), id, &rez)
-	return rez, err
-}
-
-// ReadAllRigid прочитать данные всех связей из базы в виде карты [id]Rigid.
-func ReadAllRigid(addrDB string) (map[int]Rigid, error) {
-	var (
-		val Rigid
-	)
-	db, err := pudge.Open(strings.Join([]string{addrDB, "rigid"}, sep), nil)
-	defer db.Close()
-
-	if err != nil {
-		return nil, err
-	}
-
-	data := make(map[int]Rigid)
-
-	count, err := db.Count()
-	if err != nil {
-		return nil, err
-	}
-
-	if count == 0 {
-		return nil, fmt.Errorf("no items in rigid")
-	}
-
-	for i := 1; i <= count; i++ {
-		err = db.Get(i, &val)
-		if err != nil {
-			return nil, err
-		}
-		data[i] = val
-	}
-
-	return data, nil
 }
 
 // calcSumRigidArea рассчитывает суммарную площадь всех переданных связей.

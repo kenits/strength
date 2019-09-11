@@ -267,67 +267,6 @@ func writeAllApprox(approx map[int]map[int]str.Approx, file *excel.File) error {
 
 }
 
-func calcByDB(fileName string) error {
-
-	file, err := excel.OpenFile(fileName)
-	if err != nil {
-		return err
-	}
-
-	basedata, err := readBaseData(file)
-	if err != nil {
-		return err
-	}
-
-	rigid, err := readRigid(file)
-	if err != nil {
-		return err
-	}
-	str.CalcAllRigid(rigid, basedata.Age)
-	err = writeRigid(rigid, file)
-	if err != nil {
-		return err
-	}
-
-	flex, err := readFlex(file)
-	if err != nil {
-		return err
-	}
-	str.CalcAllFlex(flex, basedata.Age)
-	err = writeFlex(flex, file)
-	if err != nil {
-		return err
-	}
-
-	err = str.CalculateToDB(basedata, rigid, flex, "db")
-	if err != nil {
-		return err
-	}
-
-	rezult, err := str.ReadAllRezult("db")
-	if err != nil {
-		return err
-	}
-
-	approx, err := str.ReadAllApprox("db")
-	if err != nil {
-		return err
-	}
-
-	err = writeAllRezult(rezult, file)
-	if err != nil {
-		return err
-	}
-
-	err = writeAllApprox(approx, file)
-	if err != nil {
-		return err
-	}
-	file.SaveAs("rezult.xlsx")
-
-	return nil
-}
-
 // calc сосчитать файл
 func calc(fileName string) error {
 
@@ -362,7 +301,7 @@ func calc(fileName string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	approx, rezult := str.Calculate(basedata, rigid, flex)
 	if err != nil {
 		return err
