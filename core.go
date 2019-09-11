@@ -168,9 +168,9 @@ func writeImputData(baseData *BaseData, rigid map[int]Rigid, flex map[int]Flex, 
 }
 
 // Calculate считает всё и добавляет данные в Rigid и Flex и выдаёт карты результатов
-func Calculate(baseData *BaseData, rigid map[int]Rigid, flex map[int]Flex, addressDB string) (map[int]map[int]Approx, map[int]Rezult) {
-	// FIXME: Same problem with copy map probably, need test
-	// TODO: проверить это всё и по возможности обьеденить с аналогичной с записью в ДБ
+func Calculate(baseData *BaseData, rigid map[int]Rigid, flex map[int]Flex) (map[int]map[int]Approx, map[int]Rezult) {
+
+	// TODO: проверить это всё и написать тесты
 
 	approxData := make(map[int]map[int]Approx)
 	rezultData := make(map[int]Rezult)
@@ -179,39 +179,41 @@ func Calculate(baseData *BaseData, rigid map[int]Rigid, flex map[int]Flex, addre
 	staticMoment := calcSumRigidStaticMoment(rigid) + calcSumFlexStaticMoment(flex)
 	momentOfInertia := calcSumRigidMomentOfInertia(rigid) + calcSumFlexMomentOfInertia(flex)
 
-	rezult := createRezult(area, staticMoment, momentOfInertia, 0, 0, 0, baseData.Height, baseData.Strain, baseData.Symmetry, baseData.Moment)
+	// Считаем первое приближение
+	rezultData[1] = createRezult(area, staticMoment, momentOfInertia, 0, 0, 0, baseData.Height, baseData.Strain, baseData.Symmetry, baseData.Moment)
 
-	rezultData[1] = rezult
+	// Расчёт 2 и последующих приближений
 
 	for id := 2; ; id++ {
 
-		moment := 0.0
+		// С определением момента можно как-то лучше, но пока не пойму как
+		var (
+			moment float64
+		)
+
 		if baseData.Moment == 0 {
-			moment = rezultData[1].Moment
+			moment = rezultData[id-1].Moment
 		} else {
-			moment = rezultData[1].Moment
+			moment = baseData.Moment
 		}
 
-		approx := createAllApprox(&flex, moment, rezultData[1].CenterOfMass, rezultData[1].MomentOfInertia, baseData.ElasticModul, baseData.MomentFlag)
+		approxData[id] = createAllApprox(&flex, moment, rezultData[id-1].CenterOfMass, rezultData[id-1].MomentOfInertia, baseData.ElasticModul, baseData.MomentFlag)
 
-		approxData[id] = approx
+		areaLoss := calcSumApproxArea(approxData[id])
+		staticMomentLoss := calcSumApproxStaticMoment(approxData[id])
+		momentOfInertiaLoss := calcSumApproxMomentOfInertia(approxData[id])
 
-		areaLoss := calcSumApproxArea(approx)
-		staticMomentLoss := calcSumApproxStaticMoment(approx)
-		momentOfInertiaLoss := calcSumApproxMomentOfInertia(approx)
-
-		newRezult := createRezult(area, staticMoment, momentOfInertia,
+		rezultData[id] = createRezult(area, staticMoment, momentOfInertia,
 			areaLoss, staticMomentLoss, momentOfInertiaLoss,
 			baseData.Height, baseData.Strain, baseData.Symmetry, baseData.Moment)
 
-		rezultData[id] = newRezult
-
 		// Сравнение нового и старого результата для выхода цикла
-		if accuracyCheck(&rezult, &newRezult, baseData.Accuracy, baseData.Moment) {
+		old := rezultData[id-1]
+		new := rezultData[id]
+		if accuracyCheck(&old, &new, baseData.Accuracy, baseData.Moment) {
 			break
-		} else {
-			rezult = newRezult
 		}
+
 	}
 
 	return approxData, rezultData
