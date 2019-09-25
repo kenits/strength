@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"math"
-	"os"
 	"strconv"
+	"flag"
 
 	str "github.com/kenits/strength"
 
@@ -12,12 +12,15 @@ import (
 )
 
 func main() {
-	args := os.Args
-	if len(args) == 1 {
+	var (
+		fileName string
+	)
+	flag.StringVar(&fileName, "file", "", "полное имя файла")
+	flag.Parse()
+	if fileName == "" {
 		fmt.Println("Необходимо имя файла")
 		return
 	}
-	fileName := args[1]
 	err := calc(fileName)
 	if err != nil {
 		fmt.Println("Что-то пошло не так")
