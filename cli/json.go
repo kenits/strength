@@ -1,7 +1,11 @@
 package main
 
-// APIData структура получения данных из GUI
-type APIData struct {
+import (
+	str "github.com/kenits/strength"
+)
+
+// JSONData структура получения данных из GUI
+type JSONData struct {
 	BaseData struct {
 		ProjectName    string  `json:"projectName"`
 		ReportName     string  `json:"reportName"`
@@ -36,4 +40,34 @@ type APIData struct {
 		Count     float64 `json:"count"`
 		Press     float64 `json:"press"`
 	} `json:"plateData"`
+}
+
+// ParseBaseData разбираем базовые данные
+func ParseBaseData(data *JSONData) str.BaseData {
+	var (
+		baseData str.BaseData
+		Height, Strain []float64
+	)
+	baseData.Project = data.BaseData.ProjectName
+	baseData.Name = data.BaseData.ReportName
+	baseData.Age = data.BaseData.LifeTime
+	baseData.Symmetry = data.BaseData.Symmetry
+	baseData.MomentFlag = data.BaseData.MomentCase
+	baseData.Accuracy = data.BaseData.Accurasity
+	baseData.ElasticModul = data.BaseData.ElasticModules
+	// CalculateCase если true расчёт на напряжений, если false предельного момента
+	if data.BaseData.CalculateCase {
+		baseData.Moment = data.BaseData.MomentValue
+	}
+	Height = make([]float64,1)
+	Strain = make([]float64,1)
+	for _,v := range data.BaseData.ControlPoints {
+		Height = append(Height, v.Height)
+		Strain = append(Strain, v.Stress)
+	}
+
+	baseData.Height = Height
+	baseData.Strain = Strain
+
+	return baseData
 }

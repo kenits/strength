@@ -1,10 +1,10 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"math"
 	"strconv"
-	"flag"
 
 	str "github.com/kenits/strength"
 
@@ -13,21 +13,32 @@ import (
 
 func main() {
 	var (
-		fileName string
+		inputFile, outputFile string
+		isExel                bool
 	)
-	flag.StringVar(&fileName, "file", "", "полное имя файла")
+	flag.StringVar(&inputFile, "file", "", "полное имя файла")
+	flag.BoolVar(&isExel, "exel", false, "указание что исходный файл это exel")
+	flag.StringVar(&outputFile, "o", "", "полное имя файла")
 	flag.Parse()
-	if fileName == "" {
+	if inputFile == "" {
 		fmt.Println("Необходимо имя файла")
 		return
 	}
-	err := calc(fileName)
-	if err != nil {
-		fmt.Println("Что-то пошло не так")
-		fmt.Println(err)
-		return
+	if isExel {
+		if outputFile == "" {
+			outputFile = "rezult.xlsx"
+		}
+		err := calc(inputFile, outputFile)
+		if err != nil {
+			fmt.Println("Что-то пошло не так")
+			fmt.Println(err)
+			return
+		}
+		fmt.Println("Отработано")
+	} else {
+		fmt.Println("Отработано")
 	}
-	fmt.Println("Отработано")
+
 
 }
 
@@ -271,9 +282,9 @@ func writeAllApprox(approx map[int]map[int]str.Approx, file *excel.File) error {
 }
 
 // calc сосчитать файл
-func calc(fileName string) error {
+func calc(inputFile, outputFile string) error {
 
-	file, err := excel.OpenFile(fileName)
+	file, err := excel.OpenFile(inputFile)
 	if err != nil {
 		return err
 	}
@@ -319,7 +330,7 @@ func calc(fileName string) error {
 	if err != nil {
 		return err
 	}
-	file.SaveAs("rezult.xlsx")
+	file.SaveAs(outputFile)
 
 	return nil
 }
