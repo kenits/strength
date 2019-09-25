@@ -28,7 +28,7 @@ func main() {
 		if outputFile == "" {
 			outputFile = "rezult.xlsx"
 		}
-		err := calc(inputFile, outputFile)
+		err := calcExel(inputFile, outputFile)
 		if err != nil {
 			fmt.Println("Что-то пошло не так")
 			fmt.Println(err)
@@ -36,9 +36,34 @@ func main() {
 		}
 		fmt.Println("Отработано")
 	} else {
+		if outputFile == "" {
+			outputFile = "rezult.json"
+		}
+		err := calcJSON(inputFile, outputFile)
+		if err != nil {
+			fmt.Println("Что-то пошло не так")
+			fmt.Println(err)
+			return
+		}
 		fmt.Println("Отработано")
 	}
 
+}
+func calcJSON(inputFile, outputFile string) error {
+	basedata, rigid, flex, err := ParseFile(inputFile)
+	if err != nil {
+		return err
+	}
+	str.CalcAllRigid(rigid, basedata.Age)
+
+	str.CalcAllFlex(flex, basedata.Age)
+
+	approx, rezult := str.Calculate(&basedata, rigid, flex)
+	if err != nil {
+		return err
+	}
+	writeJSON(approx, rezult)
+	return nil
 
 }
 
@@ -282,7 +307,7 @@ func writeAllApprox(approx map[int]map[int]str.Approx, file *excel.File) error {
 }
 
 // calc сосчитать файл
-func calc(inputFile, outputFile string) error {
+func calcExel(inputFile, outputFile string) error {
 
 	file, err := excel.OpenFile(inputFile)
 	if err != nil {
@@ -317,9 +342,6 @@ func calc(inputFile, outputFile string) error {
 	}
 
 	approx, rezult := str.Calculate(basedata, rigid, flex)
-	if err != nil {
-		return err
-	}
 
 	err = writeAllRezult(rezult, file)
 	if err != nil {
